@@ -23,11 +23,11 @@ namespace Game4Freak.AdvancedZones
     public class AdvancedZones : RocketPlugin<AdvancedZonesConfiguration>
     {
         public static AdvancedZones Instance;
+        public static AdvancedZones Inst;
         public const string VERSION = "1.0.0";
         public string newVersion = null;
         private int frame = 10;
         private Dictionary<string, Vector3> lastPosition;
-        private bool notifyUpdate = false;
         // Events
         public delegate void onZoneLeaveHandler(UnturnedPlayer player, Zone zone, Vector3 lastPos);
         public static event onZoneLeaveHandler onZoneLeave;
@@ -53,6 +53,7 @@ namespace Game4Freak.AdvancedZones
         protected override void Load()
         {
             Instance = this;
+            Inst = Instance;
             Logger.Log("AdvancedZones v" + VERSION);
 
             WebClient client = new WebClient();
@@ -69,7 +70,6 @@ namespace Game4Freak.AdvancedZones
                 if (compareVersion(newVersion, VERSION))
                 {
                     Logger.Log("A new AdvancedZones version (" + newVersion + ") is available !!!");
-                    notifyUpdate = true;
                 }
             }
 
@@ -439,11 +439,6 @@ namespace Game4Freak.AdvancedZones
             foreach (var zone in getPositionZones(player.Position))
             {
                 onZoneEnter(player, zone, player.Position);
-            }
-            if (player.HasPermission("advancedzones") && notifyUpdate)
-            {
-                UnturnedChat.Say(player, "A new AdvancedZones version (" + newVersion + ") is available !!! Yours is: " + VERSION, Color.red);
-                notifyUpdate = false;
             }
         }
 

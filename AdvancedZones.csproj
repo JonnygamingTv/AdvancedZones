@@ -41,7 +41,7 @@
       <HintPath>..\libs\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="com.rlabrecque.steamworks.net">
-      <HintPath>..\libs\com.rlabrecque.steamworks.net.dll</HintPath>
+      <HintPath>..\..\..\SteamLibrary\steamapps\common\Unturned\Unturned_Data\Managed\com.rlabrecque.steamworks.net.dll</HintPath>
     </Reference>
     <Reference Include="Rocket.API, Version=2.6.4.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -56,7 +56,7 @@
       <HintPath>..\libs\Rocket.Unturned.dll</HintPath>
     </Reference>
     <Reference Include="SDG.NetTransport">
-      <HintPath>..\libs\SDG.NetTransport.dll</HintPath>
+      <HintPath>..\..\..\SteamLibrary\steamapps\common\Unturned\Unturned_Data\Managed\SDG.NetTransport.dll</HintPath>
     </Reference>
     <Reference Include="System.Data, Version=2.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089, processorArchitecture=x86">
       <SpecificVersion>False</SpecificVersion>
