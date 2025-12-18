@@ -1946,8 +1946,7 @@ namespace Game4Freak.AdvancedZones
             }
             else if (command[0].ToLower() == "wiki")
             {
-                player.Player.sendBrowserRequest("Need help? Take a look at the AdvancedZones wiki", "https://github.com/Game4Freak/AdvancedZones/wiki");
-                // player.Player.channel.send("askBrowserRequest", player.CSteamID, ESteamPacket.UPDATE_RELIABLE_BUFFER, "Need help? Take a look at the AdvancedZones wiki", "https://github.com/Game4Freak/AdvancedZones/wiki");
+                player.Player.channel.send("askBrowserRequest", player.CSteamID, ESteamPacket.UPDATE_RELIABLE_BUFFER, "Need help? Take a look at the AdvancedZones wiki", "https://github.com/Game4Freak/AdvancedZones/wiki");
             }
             else if (command[0].ToLower() == "help")
             {

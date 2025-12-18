@@ -1,4 +1,5 @@
-﻿using Rocket.API;
+﻿using Game4Freak.AdvancedZones.Managers;
+using Rocket.API;
 using Rocket.Core;
 using Rocket.Core.Plugins;
 using Rocket.Unturned;
@@ -108,6 +109,8 @@ namespace Game4Freak.AdvancedZones
             // Block Buildable
             BarricadeManager.onDeployBarricadeRequested += onBarricadeDeploy;
             StructureManager.onDeployStructureRequested += onStructureDepoly;
+
+            ZoneManager.Instance().Load();
         }
 
         protected override void Unload()
@@ -135,6 +138,8 @@ namespace Game4Freak.AdvancedZones
             // Block Buildable
             BarricadeManager.onDeployBarricadeRequested -= onBarricadeDeploy;
             StructureManager.onDeployStructureRequested -= onStructureDepoly;
+
+            ZoneManager.Instance().UnLoad();
         }
 
         private void updateConfig()
@@ -230,6 +235,11 @@ namespace Game4Freak.AdvancedZones
                 }
                 else
                 {
+                    if(null == player.Player || null == player.Player.life || player.Player.life.isDead || null == player.Player.transform)
+                    {
+                        continue;
+                    }
+
                     if (!lastPosition.TryGetValue(player.Id, out lastPos))
                     {
                         lastPos = player.Position;
@@ -261,7 +271,7 @@ namespace Game4Freak.AdvancedZones
                 }
 
                 // Player Equip
-                if (player.Player.equipment.IsEquipAnimationFinished && playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
+                if (player.Player.equipment.isSelected && playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
                 {
                     onPlayerEquiped(player.Player, player.Player.equipment);
                 }
@@ -296,6 +306,21 @@ namespace Game4Freak.AdvancedZones
                 }
             }
         }
+
+        //private Vector3 getPosition(UnturnedPlayer player)
+        //{
+        //    if(null == player || null == player.Player || null == player.Player.transform)
+        //    {
+        //        CSteamID? cSteamID = player?.CSteamID;
+        //        if (cSteamID.HasValue)
+        //        {
+        //            Provider.kick(player.CSteamID, "状态异常");
+        //            Logger.Log($"KICK player: {player.CSteamID} for unnormal status");
+        //        }
+        //        return Vector3.zero;
+        //    }
+        //    return player.Position;
+        //}
 
         private void onZoneLeft(UnturnedPlayer player, Zone zone, Vector3 lastPos)
         {
@@ -746,12 +771,12 @@ namespace Game4Freak.AdvancedZones
 
         private void onVehicleDamage(CSteamID instigatorSteamID, InteractableVehicle vehicle, ref ushort pendingTotalDamage, ref bool canRepair, ref bool shouldAllow, EDamageOrigin damageOrigin)
         {
-            if ((transformInZoneType(vehicle.transform, Zone.flagTypes[Zone.noVehicleDamage]) && !UnturnedPlayer.FromCSteamID(instigatorSteamID).HasPermission("advancedzones.override.vehicledamage")) && pendingTotalDamage > 0)
+            if ((transformInZoneType(vehicle.transform, Zone.flagTypes[Zone.noVehicleDamage]) && (null == UnturnedPlayer.FromCSteamID(instigatorSteamID) || !UnturnedPlayer.FromCSteamID(instigatorSteamID).HasPermission("advancedzones.override.vehicledamage"))) && pendingTotalDamage > 0)
             {
                 List<Zone> currentZones = getPositionZones(vehicle.transform.position);
                 foreach (var zone in currentZones)
                 {
-                    if (zone.hasFlag(Zone.flagTypes[Zone.noVehicleDamage]) && !UnturnedPlayer.FromCSteamID(instigatorSteamID).HasPermission(("advancedzones.override.vehicledamage." + zone.getName()).ToLower()))
+                    if (zone.hasFlag(Zone.flagTypes[Zone.noVehicleDamage]) && (null == UnturnedPlayer.FromCSteamID(instigatorSteamID) || !UnturnedPlayer.FromCSteamID(instigatorSteamID).HasPermission(("advancedzones.override.vehicledamage." + zone.getName()).ToLower())))
                     {
                         shouldAllow = false;
                     }
@@ -864,6 +889,25 @@ namespace Game4Freak.AdvancedZones
                 }
                 return false;
             }
+        }
+
+        public bool IsVehicleInZones(InteractableVehicle vehicle, List<string> zoneNames)
+        {
+            if(null == vehicle || null == vehicle.transform) return false;
+            return IsPositionInZones(vehicle.transform.position, zoneNames);
+        }
+
+        public bool IsPositionInZones(Vector3 position, List<string> zoneNames)
+        {
+            if(null == position) return false;
+            List<Zone> zones = getPositionZones(position);
+            if(zones.IsEmpty()) return false;
+            List<string> positionInZoneNames = new List<string>();
+            foreach(Zone zone in zones)
+            {
+                positionInZoneNames.Add(zone.name);
+            }
+            return zoneNames.Intersect(positionInZoneNames).Count() > 0;
         }
 
         public List<Zone> getPositionZones(Vector3 position)
