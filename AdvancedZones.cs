@@ -271,7 +271,7 @@ namespace Game4Freak.AdvancedZones
                 }
 
                 // Player Equip
-                if (player.Player.equipment.isSelected && playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
+                if (player.Player.equipment.IsEquipAnimationFinished && playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
                 {
                     onPlayerEquiped(player.Player, player.Player.equipment);
                 }
