@@ -28,6 +28,7 @@ namespace Game4Freak.AdvancedZones
         public string newVersion = null;
         private Dictionary<string, Vector3> lastPosition;
         private static System.Threading.Timer _timer;
+        private static System.Threading.Timer _timer2;
         // Events
         public delegate void onZoneLeaveHandler(UnturnedPlayer player, Zone zone, Vector3 lastPos);
         public static event onZoneLeaveHandler onZoneLeave;
@@ -114,7 +115,8 @@ namespace Game4Freak.AdvancedZones
 
             UnturnedPlayerEvents.OnPlayerUpdatePosition += onPlayerMove;
 
-            _timer = new System.Threading.Timer(_ => ManualUpdate(), null, 1000, 1000);
+            _timer = new System.Threading.Timer(_ => ManualUpdate(), null, 500, 500);
+            _timer2 = new System.Threading.Timer(_ => ManualUpdate2(), null, 10000, 10000);
 
             ZoneManager.Instance().Load();
         }
@@ -159,6 +161,7 @@ namespace Game4Freak.AdvancedZones
             PlayerEquipment.OnUseableChanged_Global -= onEquip;
             UnturnedPlayerEvents.OnPlayerUpdatePosition -= onPlayerMove;
             _timer?.Dispose();
+            _timer2?.Dispose();
             ZoneManager.Instance().UnLoad();
         }
 
@@ -302,20 +305,6 @@ namespace Game4Freak.AdvancedZones
                     onPlayerEquiped(player.Player, player.Player.equipment);
                 }*/
             }
-            
-
-            // infiniteGenerator flag
-            List<InteractableGenerator> generators = FindObjects<InteractableGenerator>();
-            foreach (var generator in generators)
-            {
-                if (transformInZoneType(generator.transform, Zone.flagTypes[Zone.infiniteGenerator]))
-                {
-                    if (generator.fuel < generator.capacity - 10)
-                    {
-                        Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => BarricadeManager.sendFuel(generator.transform, generator.capacity));
-                    }
-                }
-            }
 
             // noZombie flag
             if (ZombieManager.regions != null)
@@ -329,6 +318,21 @@ namespace Game4Freak.AdvancedZones
                         zombie.gear = 0;
                         zombie.isDead = true;
                         Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => ZombieManager.sendZombieDead(zombie, new Vector3(0, 0, 0)));
+                    }
+                }
+            }
+        }
+        private void ManualUpdate2()
+        {
+            // infiniteGenerator flag
+            List<InteractableGenerator> generators = FindObjects<InteractableGenerator>();
+            foreach (var generator in generators)
+            {
+                if (transformInZoneType(generator.transform, Zone.flagTypes[Zone.infiniteGenerator]))
+                {
+                    if (generator.fuel < generator.capacity - 10)
+                    {
+                        Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => BarricadeManager.sendFuel(generator.transform, generator.capacity));
                     }
                 }
             }
