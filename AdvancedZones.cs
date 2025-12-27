@@ -120,11 +120,14 @@ namespace Game4Freak.AdvancedZones
 
         private void onEquip(PlayerEquipment obj)
         {
-            UnturnedPlayer player = UnturnedPlayer.FromPlayer(obj.player);
-            if(playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
+            System.Threading.Tasks.Task.Run(() =>
             {
-                onPlayerEquiped(player.Player, player.Player.equipment);
-            }
+                UnturnedPlayer player = UnturnedPlayer.FromPlayer(obj.player);
+                if (playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
+                {
+                    onPlayerEquiped(player, player.Player.equipment);
+                }
+            });
         }
 
         protected override void Unload()
@@ -520,16 +523,16 @@ namespace Game4Freak.AdvancedZones
             }
         }
 
-        private void onPlayerEquiped(Player player, PlayerEquipment equipment)
+        private void onPlayerEquiped(UnturnedPlayer player, PlayerEquipment equipment)
         {
-            if (!UnturnedPlayer.FromPlayer(player).HasPermission("advancedzones.override.equip"))
+            if (!player.HasPermission("advancedzones.override.equip"))
             {
-                List<Zone> currentZones = getPositionZones(player.transform.position);
+                List<Zone> currentZones = getPositionZones(player.Player.transform.position);
                 foreach (var zone in currentZones)
                 {
                     if (zone.hasFlag(Zone.flagTypes[Zone.noItemEquip]))
                     {
-                        if (!UnturnedPlayer.FromPlayer(player).HasPermission(("advancedzones.override.equip." + zone.getName()).ToLower()))
+                        if (!player.HasPermission(("advancedzones.override.equip." + zone.getName()).ToLower()))
                         {
                             List<EquipBlocklist> currentEquipBlocklists = getEquipBlocklists(zone.getEquipBlocklists());
                             List<EquipBlocklist> currentIgnoredEquipBlocklists = new List<EquipBlocklist>();
@@ -555,7 +558,7 @@ namespace Game4Freak.AdvancedZones
                             {
                                 if (blocklist.name == "ALL")
                                 {
-                                    equipment.dequip();
+                                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(()=>equipment.dequip());
                                     return;
                                 }
                             }
@@ -564,7 +567,7 @@ namespace Game4Freak.AdvancedZones
                             {
                                 if (blocklist.hasItem(equipment.asset.id))
                                 {
-                                    equipment.dequip();
+                                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(()=>equipment.dequip());
                                     return;
                                 }
                             }
