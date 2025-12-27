@@ -120,9 +120,9 @@ namespace Game4Freak.AdvancedZones
             ZoneManager.Instance().Load();
         }
 
-        private void onEquip(PlayerEquipment obj)
+        private async void onEquip(PlayerEquipment obj)
         {
-            System.Threading.Tasks.Task.Run(() =>
+            await System.Threading.Tasks.Task.Run(() =>
             {
                 UnturnedPlayer player = UnturnedPlayer.FromPlayer(obj.player);
                 if (playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
@@ -185,13 +185,13 @@ namespace Game4Freak.AdvancedZones
                 {
                     // Leaving
                     Zone zone = getZoneByName(zoneName);
-                    onZoneLeave(player, zone, lastPos);
+                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => onZoneLeave(player, zone, lastPos));
                 }
                 foreach (var zoneName in currentZoneNames.Except(lastZoneNames))
                 {
                     // Entering
                     Zone zone = getZoneByName(zoneName);
-                    onZoneEnter(player, zone, lastPos);
+                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => onZoneEnter(player, zone, lastPos));
                 }
             }
             lastPosition[player.Id] = player.Position;
@@ -351,14 +351,11 @@ namespace Game4Freak.AdvancedZones
             {
                 if (!player.HasPermission("advancedzones.override.noleave") && !player.HasPermission("advancedzones.override.noleave." + zone.getName().ToLower()))
                 {
-                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() =>
+                    if (player.IsInVehicle)
                     {
-                        if (player.IsInVehicle)
-                        {
-                            player.CurrentVehicle.forceRemoveAllPlayers();
-                        }
-                        player.Teleport(new Vector3(lastPos.x, lastPos.y - 0.5f, lastPos.z), player.Rotation);
-                    });
+                        player.CurrentVehicle.forceRemoveAllPlayers();
+                    }
+                    player.Teleport(new Vector3(lastPos.x, lastPos.y - 0.5f, lastPos.z), player.Rotation);
                     return;
                 }
             }
@@ -387,14 +384,14 @@ namespace Game4Freak.AdvancedZones
             {
                 foreach (var effect in zone.getLeaveAddEffects())
                 {
-                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => player.TriggerEffect(effect));
+                    player.TriggerEffect(effect);
                 }
             }
             if (zone.hasFlag(Zone.flagTypes[Zone.leaveRemoveEffect]))
             {
                 foreach (var effect in zone.getLeaveRemoveEffects())
                 {
-                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => EffectManager.askEffectClearByID(effect, player.CSteamID));
+                    EffectManager.askEffectClearByID(effect, player.CSteamID);
                 }
             }
         }
@@ -405,14 +402,11 @@ namespace Game4Freak.AdvancedZones
             {
                 if (!player.HasPermission("advancedzones.override.noenter") && !player.HasPermission("advancedzones.override.noenter." + zone.getName().ToLower()))
                 {
-                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() =>
+                    if (player.IsInVehicle)
                     {
-                        if (player.IsInVehicle)
-                        {
-                            player.CurrentVehicle.forceRemoveAllPlayers();
-                        }
-                        player.Teleport(new Vector3(lastPos.x, lastPos.y - 0.5f, lastPos.z), player.Rotation);
-                    });
+                        player.CurrentVehicle.forceRemoveAllPlayers();
+                    }
+                    player.Teleport(new Vector3(lastPos.x, lastPos.y - 0.5f, lastPos.z), player.Rotation);
                     return;
                 }
             }
@@ -441,14 +435,14 @@ namespace Game4Freak.AdvancedZones
             {
                 foreach (var effect in zone.getEnterAddEffects())
                 {
-                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(()=>player.TriggerEffect(effect));
+                    player.TriggerEffect(effect);
                 }
             }
             if (zone.hasFlag(Zone.flagTypes[Zone.enterRemoveEffect]))
             {
                 foreach (var effect in zone.getEnterRemoveEffects())
                 {
-                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(()=>EffectManager.askEffectClearByID(effect, player.CSteamID));
+                    EffectManager.askEffectClearByID(effect, player.CSteamID);
                 }
             }
         }
