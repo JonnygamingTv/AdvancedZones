@@ -26,7 +26,6 @@ namespace Game4Freak.AdvancedZones
         public static AdvancedZones Inst;
         public const string VERSION = "1.0.0";
         public string newVersion = null;
-        private int frame = 10;
         private Dictionary<string, Vector3> lastPosition;
         private static System.Threading.Timer _timer;
         // Events
@@ -113,9 +112,9 @@ namespace Game4Freak.AdvancedZones
 
             PlayerEquipment.OnUseableChanged_Global += onEquip;
 
-            // UnturnedPlayerEvents.OnPlayerUpdatePosition += onPlayerMove;
+            UnturnedPlayerEvents.OnPlayerUpdatePosition += onPlayerMove;
 
-            _timer = new System.Threading.Timer(_ => ManualUpdate(), null, 200, 200);
+            _timer = new System.Threading.Timer(_ => ManualUpdate(), null, 5000, 5000);
 
             ZoneManager.Instance().Load();
         }
@@ -158,12 +157,12 @@ namespace Game4Freak.AdvancedZones
             BarricadeManager.onDeployBarricadeRequested -= onBarricadeDeploy;
             StructureManager.onDeployStructureRequested -= onStructureDeploy;
             PlayerEquipment.OnUseableChanged_Global -= onEquip;
-            // UnturnedPlayerEvents.OnPlayerUpdatePosition -= onPlayerMove;
+            UnturnedPlayerEvents.OnPlayerUpdatePosition -= onPlayerMove;
             _timer?.Dispose();
             ZoneManager.Instance().UnLoad();
         }
 
-        private void onPlayerMove(UnturnedPlayer player, Vector3 position)
+        private async void onPlayerMove(UnturnedPlayer player, Vector3 position)
         {
             if (!lastPosition.TryGetValue(player.Id, out Vector3 lastPos))
             {
@@ -171,28 +170,31 @@ namespace Game4Freak.AdvancedZones
             }
             if (!lastPos.Equals(player.Position))
             {
-                List<string> lastZoneNames = new List<string>();
-                foreach (var zone in getPositionZones(lastPos))
+                await System.Threading.Tasks.Task.Run(() =>
                 {
-                    lastZoneNames.Add(zone.getName());
-                }
-                List<string> currentZoneNames = new List<string>();
-                foreach (var zone in getPositionZones(player.Position))
-                {
-                    currentZoneNames.Add(zone.getName());
-                }
-                foreach (var zoneName in lastZoneNames.Except(currentZoneNames))
-                {
-                    // Leaving
-                    Zone zone = getZoneByName(zoneName);
-                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => onZoneLeave(player, zone, lastPos));
-                }
-                foreach (var zoneName in currentZoneNames.Except(lastZoneNames))
-                {
-                    // Entering
-                    Zone zone = getZoneByName(zoneName);
-                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => onZoneEnter(player, zone, lastPos));
-                }
+                    List<string> lastZoneNames = new List<string>();
+                    foreach (var zone in getPositionZones(lastPos))
+                    {
+                        lastZoneNames.Add(zone.getName());
+                    }
+                    List<string> currentZoneNames = new List<string>();
+                    foreach (var zone in getPositionZones(player.Position))
+                    {
+                        currentZoneNames.Add(zone.getName());
+                    }
+                    foreach (var zoneName in lastZoneNames.Except(currentZoneNames))
+                    {
+                        // Leaving
+                        Zone zone = getZoneByName(zoneName);
+                        Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => onZoneLeave(player, zone, lastPos));
+                    }
+                    foreach (var zoneName in currentZoneNames.Except(lastZoneNames))
+                    {
+                        // Entering
+                        Zone zone = getZoneByName(zoneName);
+                        Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => onZoneEnter(player, zone, lastPos));
+                    }
+                });
             }
             lastPosition[player.Id] = player.Position;
         }
@@ -275,6 +277,7 @@ namespace Game4Freak.AdvancedZones
 
         private void ManualUpdate()
         {
+            
             foreach (var splayer in Provider.clients)
             {
                 UnturnedPlayer player = UnturnedPlayer.FromSteamPlayer(splayer);
@@ -283,15 +286,8 @@ namespace Game4Freak.AdvancedZones
                 {
                     onPlayerConnection(player);
                 }
-                else
-                {
-                    if (null == player.Player || null == player.Player.life || player.Player.life.isDead || null == player.Player.transform)
-                    {
-                        continue;
-                    }
 
-                    onPlayerMove(player, player.Position);
-                }
+                onPlayerMove(player, player.Position);
 
                 /* Player Equip // CHANGED to event listener
                 if (player.Player.equipment.IsEquipAnimationFinished && playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
@@ -299,9 +295,10 @@ namespace Game4Freak.AdvancedZones
                     onPlayerEquiped(player.Player, player.Player.equipment);
                 }*/
             }
+            
 
             // infiniteGenerator flag
-            InteractableGenerator[] generators = FindObjectsOfType<InteractableGenerator>();
+            List<InteractableGenerator> generators = FindObjects<InteractableGenerator>();
             foreach (var generator in generators)
             {
                 if (transformInZoneType(generator.transform, Zone.flagTypes[Zone.infiniteGenerator]))
@@ -328,6 +325,31 @@ namespace Game4Freak.AdvancedZones
                     }
                 }
             }
+        }
+
+        public static List<T> FindObjects<T>() where T : Interactable
+        {
+            var result = new List<T>();
+
+            foreach (var region in BarricadeManager.regions)
+            {
+                foreach (var drop in region.drops)
+                {
+                    if (drop.interactable is T t)
+                        result.Add(t);
+                }
+            }
+
+            foreach (var region in BarricadeManager.vehicleRegions)
+            {
+                foreach (var drop in region.drops)
+                {
+                    if (drop.interactable is T t)
+                        result.Add(t);
+                }
+            }
+
+            return result;
         }
 
         //private Vector3 getPosition(UnturnedPlayer player)
