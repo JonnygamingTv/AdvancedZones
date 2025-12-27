@@ -301,7 +301,7 @@ namespace Game4Freak.AdvancedZones
             }
 
             // infiniteGenerator flag
-            InteractableGenerator[] generators = FindObjectsOfType<InteractableGenerator>();
+            List<InteractableGenerator> generators = FindObjects<InteractableGenerator>();
             foreach (var generator in generators)
             {
                 if (transformInZoneType(generator.transform, Zone.flagTypes[Zone.infiniteGenerator]))
@@ -328,6 +328,31 @@ namespace Game4Freak.AdvancedZones
                     }
                 }
             }
+        }
+
+        public static List<T> FindObjects<T>() where T : Interactable
+        {
+            var result = new List<T>();
+
+            foreach (var region in BarricadeManager.regions)
+            {
+                foreach (var drop in region.drops)
+                {
+                    if (drop.interactable is T t)
+                        result.Add(t);
+                }
+            }
+
+            foreach (var region in BarricadeManager.vehicleRegions)
+            {
+                foreach (var drop in region.drops)
+                {
+                    if (drop.interactable is T t)
+                        result.Add(t);
+                }
+            }
+
+            return result;
         }
 
         //private Vector3 getPosition(UnturnedPlayer player)
