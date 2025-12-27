@@ -115,7 +115,7 @@ namespace Game4Freak.AdvancedZones
 
             // UnturnedPlayerEvents.OnPlayerUpdatePosition += onPlayerMove;
 
-            _timer = new System.Threading.Timer(_ => ManualUpdate(), null, 200, System.Threading.Timeout.Infinite);
+            _timer = new System.Threading.Timer(_ => ManualUpdate(), null, 200, 200);
 
             ZoneManager.Instance().Load();
         }
@@ -275,62 +275,59 @@ namespace Game4Freak.AdvancedZones
 
         private void ManualUpdate()
         {
-            System.Threading.Tasks.Task.Run(() =>
+            foreach (var splayer in Provider.clients)
             {
-                foreach (var splayer in Provider.clients)
+                UnturnedPlayer player = UnturnedPlayer.FromSteamPlayer(splayer);
+                // Enter / Leave region
+                if (!lastPosition.ContainsKey(player.Id))
                 {
-                    UnturnedPlayer player = UnturnedPlayer.FromSteamPlayer(splayer);
-                    // Enter / Leave region
-                    if (!lastPosition.ContainsKey(player.Id))
+                    onPlayerConnection(player);
+                }
+                else
+                {
+                    if (null == player.Player || null == player.Player.life || player.Player.life.isDead || null == player.Player.transform)
                     {
-                        onPlayerConnection(player);
-                    }
-                    else
-                    {
-                        if (null == player.Player || null == player.Player.life || player.Player.life.isDead || null == player.Player.transform)
-                        {
-                            continue;
-                        }
-
-                        onPlayerMove(player, player.Position);
+                        continue;
                     }
 
-                    /* Player Equip // CHANGED to event listener
-                    if (player.Player.equipment.IsEquipAnimationFinished && playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
-                    {
-                        onPlayerEquiped(player.Player, player.Player.equipment);
-                    }*/
+                    onPlayerMove(player, player.Position);
                 }
 
-                // infiniteGenerator flag
-                InteractableGenerator[] generators = FindObjectsOfType<InteractableGenerator>();
-                foreach (var generator in generators)
+                /* Player Equip // CHANGED to event listener
+                if (player.Player.equipment.IsEquipAnimationFinished && playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
                 {
-                    if (transformInZoneType(generator.transform, Zone.flagTypes[Zone.infiniteGenerator]))
-                    {
-                        if (generator.fuel < generator.capacity - 10)
-                        {
-                            Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(()=>BarricadeManager.sendFuel(generator.transform, generator.capacity));
-                        }
-                    }
-                }
+                    onPlayerEquiped(player.Player, player.Player.equipment);
+                }*/
+            }
 
-                // noZombie flag
-                if (ZombieManager.regions != null)
+            // infiniteGenerator flag
+            InteractableGenerator[] generators = FindObjectsOfType<InteractableGenerator>();
+            foreach (var generator in generators)
+            {
+                if (transformInZoneType(generator.transform, Zone.flagTypes[Zone.infiniteGenerator]))
                 {
-                    foreach (ZombieRegion t in ZombieManager.regions.Where(t => t.zombies != null))
+                    if (generator.fuel < generator.capacity - 10)
                     {
-                        foreach (var zombie in t.zombies.Where(z => z != null && z.transform?.position != null))
-                        {
-                            if (zombie.isDead) continue;
-                            if (!transformInZoneType(zombie.transform, Zone.flagTypes[Zone.noZombie])) continue;
-                            zombie.gear = 0;
-                            zombie.isDead = true;
-                            Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(()=>ZombieManager.sendZombieDead(zombie, new Vector3(0, 0, 0)));
-                        }
+                        Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => BarricadeManager.sendFuel(generator.transform, generator.capacity));
                     }
                 }
-            });
+            }
+
+            // noZombie flag
+            if (ZombieManager.regions != null)
+            {
+                foreach (ZombieRegion t in ZombieManager.regions.Where(t => t.zombies != null))
+                {
+                    foreach (var zombie in t.zombies.Where(z => z != null && z.transform?.position != null))
+                    {
+                        if (zombie.isDead) continue;
+                        if (!transformInZoneType(zombie.transform, Zone.flagTypes[Zone.noZombie])) continue;
+                        zombie.gear = 0;
+                        zombie.isDead = true;
+                        Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => ZombieManager.sendZombieDead(zombie, new Vector3(0, 0, 0)));
+                    }
+                }
+            }
         }
 
         //private Vector3 getPosition(UnturnedPlayer player)
