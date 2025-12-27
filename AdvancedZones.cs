@@ -113,7 +113,9 @@ namespace Game4Freak.AdvancedZones
 
             PlayerEquipment.OnUseableChanged_Global += onEquip;
 
-            _timer = new System.Threading.Timer(_ => ManualUpdate(), null, 500, System.Threading.Timeout.Infinite);
+            // UnturnedPlayerEvents.OnPlayerUpdatePosition += onPlayerMove;
+
+            _timer = new System.Threading.Timer(_ => ManualUpdate(), null, 200, System.Threading.Timeout.Infinite);
 
             ZoneManager.Instance().Load();
         }
@@ -156,8 +158,43 @@ namespace Game4Freak.AdvancedZones
             BarricadeManager.onDeployBarricadeRequested -= onBarricadeDeploy;
             StructureManager.onDeployStructureRequested -= onStructureDeploy;
             PlayerEquipment.OnUseableChanged_Global -= onEquip;
+            // UnturnedPlayerEvents.OnPlayerUpdatePosition -= onPlayerMove;
             _timer?.Dispose();
             ZoneManager.Instance().UnLoad();
+        }
+
+        private void onPlayerMove(UnturnedPlayer player, Vector3 position)
+        {
+            if (!lastPosition.TryGetValue(player.Id, out Vector3 lastPos))
+            {
+                lastPos = player.Position;
+            }
+            if (!lastPos.Equals(player.Position))
+            {
+                List<string> lastZoneNames = new List<string>();
+                foreach (var zone in getPositionZones(lastPos))
+                {
+                    lastZoneNames.Add(zone.getName());
+                }
+                List<string> currentZoneNames = new List<string>();
+                foreach (var zone in getPositionZones(player.Position))
+                {
+                    currentZoneNames.Add(zone.getName());
+                }
+                foreach (var zoneName in lastZoneNames.Except(currentZoneNames))
+                {
+                    // Leaving
+                    Zone zone = getZoneByName(zoneName);
+                    onZoneLeave(player, zone, lastPos);
+                }
+                foreach (var zoneName in currentZoneNames.Except(lastZoneNames))
+                {
+                    // Entering
+                    Zone zone = getZoneByName(zoneName);
+                    onZoneEnter(player, zone, lastPos);
+                }
+            }
+            lastPosition[player.Id] = player.Position;
         }
 
         private void updateConfig()
@@ -242,7 +279,6 @@ namespace Game4Freak.AdvancedZones
             {
                 foreach (var splayer in Provider.clients)
                 {
-                    Vector3 lastPos;
                     UnturnedPlayer player = UnturnedPlayer.FromSteamPlayer(splayer);
                     // Enter / Leave region
                     if (!lastPosition.ContainsKey(player.Id))
@@ -256,34 +292,7 @@ namespace Game4Freak.AdvancedZones
                             continue;
                         }
 
-                        if (!lastPosition.TryGetValue(player.Id, out lastPos))
-                        {
-                            lastPos = player.Position;
-                        }
-                        if (!lastPos.Equals(player.Position))
-                        {
-                            List<string> lastZoneNames = new List<string>();
-                            foreach (var zone in getPositionZones(lastPos))
-                            {
-                                lastZoneNames.Add(zone.getName());
-                            }
-                            List<string> currentZoneNames = new List<string>();
-                            foreach (var zone in getPositionZones(player.Position))
-                            {
-                                currentZoneNames.Add(zone.getName());
-                            }
-                            foreach (var zoneName in lastZoneNames.Except(currentZoneNames))
-                            {
-                                // Leaving
-                                onZoneLeave(player, getZoneByName(zoneName), lastPos);
-                            }
-                            foreach (var zoneName in currentZoneNames.Except(lastZoneNames))
-                            {
-                                // Entering
-                                onZoneEnter(player, getZoneByName(zoneName), lastPos);
-                            }
-                        }
-                        lastPosition[player.Id] = player.Position;
+                        onPlayerMove(player, player.Position);
                     }
 
                     /* Player Equip // CHANGED to event listener
@@ -345,11 +354,14 @@ namespace Game4Freak.AdvancedZones
             {
                 if (!player.HasPermission("advancedzones.override.noleave") && !player.HasPermission("advancedzones.override.noleave." + zone.getName().ToLower()))
                 {
-                    if (player.IsInVehicle)
+                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() =>
                     {
-                        player.CurrentVehicle.forceRemoveAllPlayers();
-                    }
-                    player.Teleport(new Vector3(lastPos.x, lastPos.y - 0.5f, lastPos.z), player.Rotation);
+                        if (player.IsInVehicle)
+                        {
+                            player.CurrentVehicle.forceRemoveAllPlayers();
+                        }
+                        player.Teleport(new Vector3(lastPos.x, lastPos.y - 0.5f, lastPos.z), player.Rotation);
+                    });
                     return;
                 }
             }
@@ -378,14 +390,14 @@ namespace Game4Freak.AdvancedZones
             {
                 foreach (var effect in zone.getLeaveAddEffects())
                 {
-                    player.TriggerEffect(effect);
+                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => player.TriggerEffect(effect));
                 }
             }
             if (zone.hasFlag(Zone.flagTypes[Zone.leaveRemoveEffect]))
             {
                 foreach (var effect in zone.getLeaveRemoveEffects())
                 {
-                    EffectManager.askEffectClearByID(effect, player.CSteamID);
+                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => EffectManager.askEffectClearByID(effect, player.CSteamID));
                 }
             }
         }
@@ -396,11 +408,14 @@ namespace Game4Freak.AdvancedZones
             {
                 if (!player.HasPermission("advancedzones.override.noenter") && !player.HasPermission("advancedzones.override.noenter." + zone.getName().ToLower()))
                 {
-                    if (player.IsInVehicle)
+                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() =>
                     {
-                        player.CurrentVehicle.forceRemoveAllPlayers();
-                    }
-                    player.Teleport(new Vector3(lastPos.x, lastPos.y - 0.5f, lastPos.z), player.Rotation);
+                        if (player.IsInVehicle)
+                        {
+                            player.CurrentVehicle.forceRemoveAllPlayers();
+                        }
+                        player.Teleport(new Vector3(lastPos.x, lastPos.y - 0.5f, lastPos.z), player.Rotation);
+                    });
                     return;
                 }
             }
@@ -429,14 +444,14 @@ namespace Game4Freak.AdvancedZones
             {
                 foreach (var effect in zone.getEnterAddEffects())
                 {
-                    player.TriggerEffect(effect);
+                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(()=>player.TriggerEffect(effect));
                 }
             }
             if (zone.hasFlag(Zone.flagTypes[Zone.enterRemoveEffect]))
             {
                 foreach (var effect in zone.getEnterRemoveEffects())
                 {
-                    EffectManager.askEffectClearByID(effect, player.CSteamID);
+                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(()=>EffectManager.askEffectClearByID(effect, player.CSteamID));
                 }
             }
         }
@@ -444,19 +459,25 @@ namespace Game4Freak.AdvancedZones
         private void onPlayerDisconnection(UnturnedPlayer player)
         {
             lastPosition.Remove(player.Id);
-            foreach (var zone in getPositionZones(player.Position))
+            System.Threading.Tasks.Task.Run(() =>
             {
-                onZoneLeave(player, zone, player.Position);
-            }
+                foreach (var zone in getPositionZones(player.Position))
+                {
+                    onZoneLeave(player, zone, player.Position);
+                }
+            });
         }
 
         private void onPlayerConnection(UnturnedPlayer player)
         {
-            lastPosition.Add(player.Id, player.Position);
-            foreach (var zone in getPositionZones(player.Position))
+            lastPosition[player.Id] = player.Position;
+            System.Threading.Tasks.Task.Run(() =>
             {
-                onZoneEnter(player, zone, player.Position);
-            }
+                foreach (var zone in getPositionZones(player.Position))
+                {
+                    onZoneEnter(player, zone, player.Position);
+                }
+            });
         }
 
         private void onVehicleCarjack(InteractableVehicle vehicle, Player instigatingPlayer, ref bool allow, ref Vector3 force, ref Vector3 torque)

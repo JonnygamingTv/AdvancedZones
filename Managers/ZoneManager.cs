@@ -120,7 +120,7 @@ namespace Game4Freak.AdvancedZones.Managers
             else
             {
                 inZoneNames = new HashSet<string> { zone?.name };
-                playerInZoneDict.Add(cSteamID, inZoneNames);
+                playerInZoneDict[cSteamID] = inZoneNames;
             }
         }
 
