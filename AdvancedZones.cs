@@ -28,6 +28,7 @@ namespace Game4Freak.AdvancedZones
         public string newVersion = null;
         private int frame = 10;
         private Dictionary<string, Vector3> lastPosition;
+        private static System.Threading.Timer _timer;
         // Events
         public delegate void onZoneLeaveHandler(UnturnedPlayer player, Zone zone, Vector3 lastPos);
         public static event onZoneLeaveHandler onZoneLeave;
@@ -61,7 +62,7 @@ namespace Game4Freak.AdvancedZones
             {
                 newVersion = client.DownloadString("http://pastebin.com/raw/CnLNQehG");
             }
-            catch (WebException e)
+            catch (WebException)
             {
                 Logger.Log("No connection to version-check");
             }
@@ -108,9 +109,22 @@ namespace Game4Freak.AdvancedZones
             VehicleManager.onSiphonVehicleRequested += onVehicleSiphoning;
             // Block Buildable
             BarricadeManager.onDeployBarricadeRequested += onBarricadeDeploy;
-            StructureManager.onDeployStructureRequested += onStructureDepoly;
+            StructureManager.onDeployStructureRequested += onStructureDeploy;
+
+            PlayerEquipment.OnUseableChanged_Global += onEquip;
+
+            _timer = new System.Threading.Timer(_ => ManualUpdate(), null, 500, System.Threading.Timeout.Infinite);
 
             ZoneManager.Instance().Load();
+        }
+
+        private void onEquip(PlayerEquipment obj)
+        {
+            UnturnedPlayer player = UnturnedPlayer.FromPlayer(obj.player);
+            if(playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
+            {
+                onPlayerEquiped(player.Player, player.Player.equipment);
+            }
         }
 
         protected override void Unload()
@@ -137,8 +151,9 @@ namespace Game4Freak.AdvancedZones
             VehicleManager.onSiphonVehicleRequested -= onVehicleSiphoning;
             // Block Buildable
             BarricadeManager.onDeployBarricadeRequested -= onBarricadeDeploy;
-            StructureManager.onDeployStructureRequested -= onStructureDepoly;
-
+            StructureManager.onDeployStructureRequested -= onStructureDeploy;
+            PlayerEquipment.OnUseableChanged_Global -= onEquip;
+            _timer?.Dispose();
             ZoneManager.Instance().UnLoad();
         }
 
@@ -218,93 +233,92 @@ namespace Game4Freak.AdvancedZones
             }
         }
 
-        private void Update()
+        private void ManualUpdate()
         {
-            // TODO: set with command
-            frame++;
-            if (frame % 10 != 0) return;
-
-            foreach (var splayer in Provider.clients)
+            System.Threading.Tasks.Task.Run(() =>
             {
-                Vector3 lastPos;
-                UnturnedPlayer player = UnturnedPlayer.FromSteamPlayer(splayer);
-                // Enter / Leave region
-                if (!lastPosition.ContainsKey(player.Id))
+                foreach (var splayer in Provider.clients)
                 {
-                    onPlayerConnection(player);
-                }
-                else
-                {
-                    if(null == player.Player || null == player.Player.life || player.Player.life.isDead || null == player.Player.transform)
+                    Vector3 lastPos;
+                    UnturnedPlayer player = UnturnedPlayer.FromSteamPlayer(splayer);
+                    // Enter / Leave region
+                    if (!lastPosition.ContainsKey(player.Id))
                     {
-                        continue;
+                        onPlayerConnection(player);
+                    }
+                    else
+                    {
+                        if (null == player.Player || null == player.Player.life || player.Player.life.isDead || null == player.Player.transform)
+                        {
+                            continue;
+                        }
+
+                        if (!lastPosition.TryGetValue(player.Id, out lastPos))
+                        {
+                            lastPos = player.Position;
+                        }
+                        if (!lastPos.Equals(player.Position))
+                        {
+                            List<string> lastZoneNames = new List<string>();
+                            foreach (var zone in getPositionZones(lastPos))
+                            {
+                                lastZoneNames.Add(zone.getName());
+                            }
+                            List<string> currentZoneNames = new List<string>();
+                            foreach (var zone in getPositionZones(player.Position))
+                            {
+                                currentZoneNames.Add(zone.getName());
+                            }
+                            foreach (var zoneName in lastZoneNames.Except(currentZoneNames))
+                            {
+                                // Leaving
+                                onZoneLeave(player, getZoneByName(zoneName), lastPos);
+                            }
+                            foreach (var zoneName in currentZoneNames.Except(lastZoneNames))
+                            {
+                                // Entering
+                                onZoneEnter(player, getZoneByName(zoneName), lastPos);
+                            }
+                        }
+                        lastPosition[player.Id] = player.Position;
                     }
 
-                    if (!lastPosition.TryGetValue(player.Id, out lastPos))
+                    /* Player Equip // CHANGED to event listener
+                    if (player.Player.equipment.IsEquipAnimationFinished && playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
                     {
-                        lastPos = player.Position;
-                    }
-                    if (!lastPos.Equals(player.Position))
-                    {
-                        List<string> lastZoneNames = new List<string>();
-                        foreach (var zone in getPositionZones(lastPos))
-                        {
-                            lastZoneNames.Add(zone.getName());
-                        }
-                        List<string> currentZoneNames = new List<string>();
-                        foreach (var zone in getPositionZones(player.Position))
-                        {
-                            currentZoneNames.Add(zone.getName());
-                        }
-                        foreach (var zoneName in lastZoneNames.Except(currentZoneNames))
-                        {
-                            // Leaving
-                            onZoneLeave(player, getZoneByName(zoneName), lastPos);
-                        }
-                        foreach (var zoneName in currentZoneNames.Except(lastZoneNames))
-                        {
-                            // Entering
-                            onZoneEnter(player, getZoneByName(zoneName), lastPos);
-                        }
-                    }
-                    lastPosition[player.Id] = player.Position;
+                        onPlayerEquiped(player.Player, player.Player.equipment);
+                    }*/
                 }
 
-                // Player Equip
-                if (player.Player.equipment.IsEquipAnimationFinished && playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
+                // infiniteGenerator flag
+                InteractableGenerator[] generators = FindObjectsOfType<InteractableGenerator>();
+                foreach (var generator in generators)
                 {
-                    onPlayerEquiped(player.Player, player.Player.equipment);
-                }
-            }
-
-            // infiniteGenerator flag
-            InteractableGenerator[] generators = FindObjectsOfType<InteractableGenerator>();
-            foreach (var generator in generators)
-            {
-                if (transformInZoneType(generator.transform, Zone.flagTypes[Zone.infiniteGenerator]))
-                {
-                    if (generator.fuel < generator.capacity - 10)
+                    if (transformInZoneType(generator.transform, Zone.flagTypes[Zone.infiniteGenerator]))
                     {
-                        BarricadeManager.sendFuel(generator.transform, generator.capacity);
+                        if (generator.fuel < generator.capacity - 10)
+                        {
+                            Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(()=>BarricadeManager.sendFuel(generator.transform, generator.capacity));
+                        }
                     }
                 }
-            }
 
-            // noZombie flag
-            if (ZombieManager.regions != null)
-            {
-                foreach (ZombieRegion t in ZombieManager.regions.Where(t => t.zombies != null))
+                // noZombie flag
+                if (ZombieManager.regions != null)
                 {
-                    foreach (var zombie in t.zombies.Where(z => z != null && z.transform?.position != null))
+                    foreach (ZombieRegion t in ZombieManager.regions.Where(t => t.zombies != null))
                     {
-                        if (zombie.isDead) continue;
-                        if (!transformInZoneType(zombie.transform, Zone.flagTypes[Zone.noZombie])) continue;
-                        zombie.gear = 0;
-                        zombie.isDead = true;
-                        ZombieManager.sendZombieDead(zombie, new Vector3(0, 0, 0));
+                        foreach (var zombie in t.zombies.Where(z => z != null && z.transform?.position != null))
+                        {
+                            if (zombie.isDead) continue;
+                            if (!transformInZoneType(zombie.transform, Zone.flagTypes[Zone.noZombie])) continue;
+                            zombie.gear = 0;
+                            zombie.isDead = true;
+                            Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(()=>ZombieManager.sendZombieDead(zombie, new Vector3(0, 0, 0)));
+                        }
                     }
                 }
-            }
+            });
         }
 
         //private Vector3 getPosition(UnturnedPlayer player)
@@ -632,7 +646,7 @@ namespace Game4Freak.AdvancedZones
             }
         }
 
-        private void onStructureDepoly(Structure structure, ItemStructureAsset asset, ref Vector3 point, ref float angle_x, ref float angle_y, ref float angle_z, ref ulong owner, ref ulong group, ref bool shouldAllow)
+        private void onStructureDeploy(Structure structure, ItemStructureAsset asset, ref Vector3 point, ref float angle_x, ref float angle_y, ref float angle_z, ref ulong owner, ref ulong group, ref bool shouldAllow)
         {
             if (!UnturnedPlayer.FromCSteamID(new CSteamID(owner)).HasPermission("advancedzones.override.build"))
             {
