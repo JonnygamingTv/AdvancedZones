@@ -114,7 +114,7 @@ namespace Game4Freak.AdvancedZones
 
             UnturnedPlayerEvents.OnPlayerUpdatePosition += onPlayerMove;
 
-            _timer = new System.Threading.Timer(_ => ManualUpdate(), null, 5000, 5000);
+            _timer = new System.Threading.Timer(_ => ManualUpdate(), null, 1000, 1000);
 
             ZoneManager.Instance().Load();
         }
@@ -286,8 +286,15 @@ namespace Game4Freak.AdvancedZones
                 {
                     onPlayerConnection(player);
                 }
+                else
+                {
+                    if (null == player.Player || null == player.Player.life || player.Player.life.isDead || null == player.Player.transform)
+                    {
+                        continue;
+                    }
 
-                onPlayerMove(player, player.Position);
+                    onPlayerMove(player, player.Position);
+                }
 
                 /* Player Equip // CHANGED to event listener
                 if (player.Player.equipment.IsEquipAnimationFinished && playerInZoneType(player, Zone.flagTypes[Zone.noItemEquip]))
