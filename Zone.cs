@@ -174,10 +174,7 @@ namespace Game4Freak.AdvancedZones
 
         public void removeFlag(string flag)
         {
-            if (flags.Contains(flag))
-            {
-                flags.Remove(flag);
-            }
+            flags.Remove(flag);
         }
 
         public bool hasFlag(string flag)

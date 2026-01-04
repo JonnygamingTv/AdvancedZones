@@ -421,7 +421,7 @@ namespace Game4Freak.AdvancedZones
             {
                 foreach (var effect in zone.getLeaveRemoveEffects())
                 {
-                    EffectManager.askEffectClearByID(effect, player.CSteamID);
+                    EffectManager.askEffectClearByID(effect, player.Player.channel.GetOwnerTransportConnection());
                 }
             }
         }
@@ -472,7 +472,7 @@ namespace Game4Freak.AdvancedZones
             {
                 foreach (var effect in zone.getEnterRemoveEffects())
                 {
-                    EffectManager.askEffectClearByID(effect, player.CSteamID);
+                    EffectManager.askEffectClearByID(effect, player.Player.channel.GetOwnerTransportConnection());
                 }
             }
         }
