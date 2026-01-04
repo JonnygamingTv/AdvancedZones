@@ -328,12 +328,9 @@ namespace Game4Freak.AdvancedZones
             List<InteractableGenerator> generators = FindObjects<InteractableGenerator>();
             foreach (var generator in generators)
             {
-                if (transformInZoneType(generator.transform, Zone.flagTypes[Zone.infiniteGenerator]))
+                if (generator.fuel < generator.capacity - 10 && transformInZoneType(generator.transform, Zone.flagTypes[Zone.infiniteGenerator])) // perform cheap math-check first
                 {
-                    if (generator.fuel < generator.capacity - 10)
-                    {
-                        Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => BarricadeManager.sendFuel(generator.transform, generator.capacity));
-                    }
+                    Rocket.Core.Utils.TaskDispatcher.QueueOnMainThread(() => BarricadeManager.sendFuel(generator.transform, generator.capacity));
                 }
             }
         }
@@ -507,7 +504,7 @@ namespace Game4Freak.AdvancedZones
         private void onVehicleCarjack(InteractableVehicle vehicle, Player instigatingPlayer, ref bool allow, ref Vector3 force, ref Vector3 torque)
         {
             UnturnedPlayer pl = UnturnedPlayer.FromPlayer(instigatingPlayer);
-            if (transformInZoneType(vehicle.transform, Zone.flagTypes[Zone.noVehicleCarjack]) && !pl.HasPermission("advancedzones.override.carjack"))
+            if (!pl.HasPermission("advancedzones.override.carjack") && transformInZoneType(vehicle.transform, Zone.flagTypes[Zone.noVehicleCarjack]))
             {
                 List<Zone> currentZones = getPositionZones(vehicle.transform.position);
                 foreach (var zone in currentZones)
@@ -524,7 +521,7 @@ namespace Game4Freak.AdvancedZones
         private void onVehicleSiphoning(InteractableVehicle vehicle, Player instigatingPlayer, ref bool shouldAllow, ref ushort desiredAmount)
         {
             UnturnedPlayer pl = UnturnedPlayer.FromPlayer(instigatingPlayer);
-            if (transformInZoneType(vehicle.transform, Zone.flagTypes[Zone.noVehicleSiphoning]) && !pl.HasPermission("advancedzones.override.siphoning"))
+            if (!pl.HasPermission("advancedzones.override.siphoning") && transformInZoneType(vehicle.transform, Zone.flagTypes[Zone.noVehicleSiphoning]))
             {
                 List<Zone> currentZones = getPositionZones(vehicle.transform.position);
                 foreach (var zone in currentZones)
@@ -557,7 +554,7 @@ namespace Game4Freak.AdvancedZones
         private void onTireDamage(CSteamID instigatorSteamID, InteractableVehicle vehicle, int tireIndex, ref bool shouldAllow, EDamageOrigin damageOrigin)
         {
             UnturnedPlayer pl = UnturnedPlayer.FromCSteamID(instigatorSteamID);
-            if (transformInZoneType(vehicle.transform, Zone.flagTypes[Zone.noTireDamage]) && !pl.HasPermission("advancedzones.override.tiredamage"))
+            if (!pl.HasPermission("advancedzones.override.tiredamage") && transformInZoneType(vehicle.transform, Zone.flagTypes[Zone.noTireDamage]))
             {
                 List<Zone> currentZones = getPositionZones(vehicle.transform.position);
                 foreach (var zone in currentZones)
@@ -822,7 +819,7 @@ namespace Game4Freak.AdvancedZones
         private void onVehicleLockpick(InteractableVehicle vehicle, Player instigatingPlayer, ref bool allow)
         {
             UnturnedPlayer pl = UnturnedPlayer.FromPlayer(instigatingPlayer);
-            if (transformInZoneType(vehicle.transform, Zone.flagTypes[Zone.noLockpick]) && !pl.HasPermission("advancedzones.override.lockpick"))
+            if (!pl.HasPermission("advancedzones.override.lockpick") && transformInZoneType(vehicle.transform, Zone.flagTypes[Zone.noLockpick]))
             {
                 List<Zone> currentZones = getPositionZones(vehicle.transform.position);
                 foreach (var zone in currentZones)
@@ -842,7 +839,7 @@ namespace Game4Freak.AdvancedZones
         private void onVehicleDamage(CSteamID instigatorSteamID, InteractableVehicle vehicle, ref ushort pendingTotalDamage, ref bool canRepair, ref bool shouldAllow, EDamageOrigin damageOrigin)
         {
             UnturnedPlayer pl = UnturnedPlayer.FromCSteamID(instigatorSteamID);
-            if ((transformInZoneType(vehicle.transform, Zone.flagTypes[Zone.noVehicleDamage]) && (null == pl || !pl.HasPermission("advancedzones.override.vehicledamage"))) && pendingTotalDamage > 0)
+            if (pendingTotalDamage > 0 && (null == pl || !pl.HasPermission("advancedzones.override.vehicledamage") && transformInZoneType(vehicle.transform, Zone.flagTypes[Zone.noVehicleDamage]))) // perform heavy transformCheck last
             {
                 List<Zone> currentZones = getPositionZones(vehicle.transform.position);
                 foreach (var zone in currentZones)
@@ -899,7 +896,7 @@ namespace Game4Freak.AdvancedZones
             {
                 if (pl != null)
                 {
-                    if (!pl.HasPermission("advancedzones.override.damage") && pendingTotalDamage > 0)
+                    if (pendingTotalDamage > 0 && !pl.HasPermission("advancedzones.override.damage"))
                     {
                         if (barricadeTransform.name.ToString() != "1102"
                                 && barricadeTransform.name.ToString() != "1101"
@@ -1045,14 +1042,14 @@ namespace Game4Freak.AdvancedZones
 
         public bool transformInZoneType(Transform transform, string type)
         {
-
-            if (getPositionZones(transform.position).Count == 0)
+            List<Zone> zones = getPositionZones(transform.position);
+            if (zones.Count == 0)
             {
                 return false;
             }
             else
             {
-                foreach (var z in getPositionZones(transform.position))
+                foreach (var z in zones)
                 {
                     if (z.hasFlag(type))
                     {
